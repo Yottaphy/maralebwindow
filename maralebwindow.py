@@ -12,11 +12,12 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 from matplotlib import font_manager
 import os
+import scienceplots
 
 # set font
 
-plt.rcParams["font.family"] = "Latin Modern Roman"
-plt.rcParams["font.size"] = 50
+plt.style.use("science")
+plt.rcParams["font.size"] = 40
 
 
 def averageSubtract(vector):
@@ -149,7 +150,7 @@ def multiRadiusPlot(name, xcent, ycent, max_radius, selectedRadius):
         if i == selectedRadius:
             print(
                 "Transmission:",
-                ratio * 100,
+                round(ratio * 100, 3),
                 "% for a",
                 selectedRadius,
                 "mm radius window.",
@@ -162,9 +163,14 @@ def multiRadiusPlot(name, xcent, ycent, max_radius, selectedRadius):
     f.close()  # closes the file after the writing
 
     # plots ratio vs window radius
-    plt.plot(r)
-    plt.ylabel("Counts within window (%)")
+    plt.rcParams["font.size"] = 10
+    plt.plot(r, color="Black")
+    plt.ylabel("Counts within window (\%)")
     plt.xlabel("Window Radius (mm)")
+    plt.axvspan(24, 36, color="Black", alpha=0.2)
+    plt.xlim(0, 41)
+    plt.ylim(0, 81)
+    plt.yticks(np.arange(0, 81, 10))
     # plt.title(
     #    "Percentage acceptance of the gas cell window\nfor different radii when centering on ("
     #    + str(xcent)
@@ -172,7 +178,6 @@ def multiRadiusPlot(name, xcent, ycent, max_radius, selectedRadius):
     #    + str(ycent)
     #    + ")."
     # )
-    plt.grid(which="major", axis="both")
     plt.savefig(name + "_multiradius.pdf")
 
 
@@ -183,17 +188,17 @@ def plotSaveGrainHisto(name, xcent, ycent, WinRadius):
 
     # define the figure
     fig, axes = plt.subplots(
-        2,
+        1,
         1,
         figsize=(16, 16.16),
         sharex=True,
         gridspec_kw={"hspace": 0, "wspace": 0},
     )
-    mwpc = axes[0]
-    proj = axes[1]
+    mwpc = axes
 
     # figure parameters
     mwpc.set_ylabel("Y (mm)")
+    mwpc.set_xlabel("X (mm)")
     # mwpc.set_title(
     #    "$^{96}$Pd on MWPC at MARA Focal Plane. 64mm diameter window centred on ("
     #    + str(xcent)
@@ -209,51 +214,40 @@ def plotSaveGrainHisto(name, xcent, ycent, WinRadius):
     )
 
     # draw two circles to represent the window sizes
-    circ1 = Circle((xcent, ycent), radius=WinRadius, color=(1, 1, 1, 0.20))
+    circ1 = Circle((xcent, ycent), radius=24, color=(1, 1, 1, 0.20))
+    circ2 = Circle((xcent, ycent), radius=36, color=(1, 1, 1, 0.20))
     mwpc.add_artist(circ1)
+    mwpc.add_artist(circ2)
     mwpc.set_ylim(ylow, yhigh + 0.25)
-
-    # project on x axis
-    binwidth = 1.1 if "Th" not in name else 4
-
-    projx, projn = Grain2DProjectionX(filein)
-    proj.bar(projx, projn, width=binwidth, color="dimgrey")
-
-    proj.axvline(xcent - WinRadius, color="C1", linewidth=5)
-    proj.axvline(xcent + WinRadius, color="C1", linewidth=5)
-
-    proj.set_xlim(xlow, xhigh)
-    proj.set_ylim(0, 5.5)
-    proj.set_ylabel("Counts")
-    proj.set_xlabel("X (mm)")
 
     # save the figure
     fig.savefig(name + "_map.pdf", transparent=True, bbox_inches="tight")
-    fig.savefig(name + "_map.png", bbox_inches="tight")
+    plt.close()
 
 
 # ----------------------------------------------------
 
 
-"""
 name = "./96Pd_Run20"  # no extension
+window_centre_x = -7  # in mm
+window_centre_y = 1  # in mm
+
+"""name = "./96Pd_Run20"  # no extension
 window_centre_x = 9  # in mm
 window_centre_y = 1  # in mm
-"""
 
-"""
 name = "./213Rn/213Rn_MWPC"  # no extension
 window_centre_x = 3  # in mm
 window_centre_y = 0  # in mm
 
-"""
 name = "./226Th/226Th"  # no extension
 window_centre_x = -24  # in mm
 window_centre_y = 0  # in mm
+"""
 
 radius = 32  # in mm
 max_radius = 40  # in mm
 usingDSSD = False
 
 plotSaveGrainHisto(name, window_centre_x, window_centre_y, radius)
-# multiRadiusPlot(name, window_centre_x, window_centre_y, max_radius, radius)
+multiRadiusPlot(name, window_centre_x, window_centre_y, max_radius, radius)

@@ -12,11 +12,12 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 from matplotlib import font_manager
 import os
+import scienceplots
 
-# set font
-
-plt.rcParams["font.family"] = "Latin Modern Roman"
+plt.style.use("science")
 plt.rcParams["font.size"] = 50
+
+np.seterr(all="ignore")
 
 
 def averageSubtract(vector):
@@ -106,93 +107,31 @@ def readFileAndOutputArrays(filename):
     return xvalues, yvalues, nvalues, sum_all
 
 
-def countInWindow(xvalues, yvalues, nvalues, sum_all, xcent, ycent, radius):
-    # sums all of the counts within the circular window defined by a specified radius and center point (xcent, ycent) and calculates the ratio of those counts to the total counts
-
-    xrec = list(map(lambda x: (x - xcent) ** 2, xvalues))
-    yrec = list(map(lambda x: (x - ycent) ** 2, yvalues))
-
-    mask = np.sqrt(np.add(xrec, yrec)) < radius
-
-    sum_selected = np.sum(nvalues[mask])
-
-    ratio = sum_selected / sum_all
-
-    return sum_selected, ratio
-
-
-def multiRadiusPlot(name, xcent, ycent, max_radius, selectedRadius):
-    # This function plots and writes a txt file for multiple radii
-    filename = name + ".d2t"
-    # reads the filename, feeding arrays of x values, y values, number of counts and the total number of counts to the window counter
-    xvalues, yvalues, nvalues, sum_all = readFileAndOutputArrays(filename)
-
-    if usingDSSD:
-        xvalues = averageSubtract(xvalues)
-        yvalues = averageSubtract(yvalues)
-
-    r = []
-    s = []
-    # open file for writing
-    f = open(name + "_YieldvRadius_" + str(xcent) + "_" + str(ycent) + ".txt", "w+")
-    f.write(
-        "Window centred at x = " + str(xcent) + " mm and y = " + str(ycent) + " mm\n"
-    )
-    f.write("\n Radius (mm)\tAcceptance (%)\n")
-
-    # calculates the sum of counts within windows of variable width and the ratio of that to total counts in the histogram
-    for i in range(0, max_radius + 1):
-        sum_s, ratio = countInWindow(
-            xvalues, yvalues, nvalues, sum_all, xcent, ycent, i
-        )
-        r.append(ratio * 100)
-        if i == selectedRadius:
-            print(
-                "Transmission:",
-                ratio * 100,
-                "% for a",
-                selectedRadius,
-                "mm radius window.",
-            )
-        s.append(sum_s)
-        f.write(
-            str(i) + "\t" + str(round(ratio * 100, 3)) + "\n"
-        )  # writes the radius in mm and the percentage acceptance
-
-    f.close()  # closes the file after the writing
-
-    # plots ratio vs window radius
-    plt.plot(r)
-    plt.ylabel("Counts within window (%)")
-    plt.xlabel("Window Radius (mm)")
-    # plt.title(
-    #    "Percentage acceptance of the gas cell window\nfor different radii when centering on ("
-    #    + str(xcent)
-    #    + ","
-    #    + str(ycent)
-    #    + ")."
-    # )
-    plt.grid(which="major", axis="both")
-    plt.savefig(name + "_multiradius.pdf")
-
-
-def plotSaveGrainHisto(name, xcent, ycent, WinRadius):
+def plotSaveGrainHisto(name, xcent, ycent, WinRadius, Pdflag):
     filein = name + ".d2t"
     # read the file and output the correct count array and plot limits
     counts2d, xlow, xhigh, ylow, yhigh = readGrain2DHistogram(filein)
 
     # define the figure
+    vertical = 2 if Pdflag else 1
+    figsize = (30, 15.15) if Pdflag else (15.15, 15.3)
+
     fig, axes = plt.subplots(
         2,
-        2,
-        figsize=(30, 15.15),
+        vertical,
+        figsize=figsize,
         sharex=True,
         gridspec_kw={"hspace": 0, "wspace": 0},
     )
-    mwpc1 = axes[0][0]
-    proj1 = axes[1][0]
-    mwpc2 = axes[0][1]
-    proj2 = axes[1][1]
+
+    if Pdflag:
+        mwpc1 = axes[0][0]
+        proj1 = axes[1][0]
+        mwpc2 = axes[0][1]
+        proj2 = axes[1][1]
+    else:
+        mwpc1 = axes[0]
+        proj1 = axes[1]
 
     # figure parameters
     mwpc1.set_ylabel("Y (mm)")
@@ -204,57 +143,76 @@ def plotSaveGrainHisto(name, xcent, ycent, WinRadius):
     #    + ")."
     # )
 
+    plt.rcParams["font.size"] = 50
+
     # fill the figure
-    scale = 1.5 if "Pd" in name else 0.2
+    scale = 1.5 if Pdflag else 0.2
     mwpc1.imshow(
         counts2d, origin="lower", vmin=0, vmax=scale, extent=[xlow, xhigh, ylow, yhigh]
     )
-    mwpc2.imshow(
-        counts2d, origin="lower", vmin=0, vmax=scale, extent=[xlow, xhigh, ylow, yhigh]
-    )
+
+    if Pdflag:
+        mwpc2.imshow(
+            counts2d,
+            origin="lower",
+            vmin=0,
+            vmax=scale,
+            extent=[xlow, xhigh, ylow, yhigh],
+        )
 
     # draw two circles to represent the window sizes
     circ1 = Circle((xcent, ycent), radius=WinRadius, color=(1, 1, 1, 0.20))
     mwpc1.add_artist(circ1)
     mwpc1.set_ylim(ylow, yhigh + 0.25)
 
-    circ2 = Circle((-xcent + 2, ycent), radius=WinRadius, color=(1, 1, 1, 0.20))
-    mwpc2.add_artist(circ2)
-    mwpc2.set_ylim(ylow, yhigh + 0.25)
+    if Pdflag:
+        circ2 = Circle((-xcent + 2, ycent), radius=WinRadius, color=(1, 1, 1, 0.20))
+        mwpc2.add_artist(circ2)
+        mwpc2.set_ylim(ylow, yhigh + 0.25)
 
     # project on x axis
-    binwidth = 1.1 if "Th" not in name else 4
+    if "Th" not in name:
+        binwidth = 1.1
+        countlabel = "Counts/0.25\,mm"
+    else:
+        binwidth = 4
+        countlabel = "Counts/4\,mm"
 
+    barcol = "dimgrey"
     projx, projn = Grain2DProjectionX(filein)
-    proj1.bar(projx, projn, width=binwidth, color="dimgrey")
-    proj2.bar(projx, projn, width=binwidth, color="dimgrey")
+    proj1.bar(projx, projn, width=binwidth, color=barcol)
+    if Pdflag:
+        proj2.bar(projx, projn, width=binwidth, color=barcol)
 
-    proj1.axvline(xcent - WinRadius, color="C1", linewidth=5)
-    proj1.axvline(xcent + WinRadius, color="C1", linewidth=5)
+    verticalcol = "C2"
 
-    proj2.axvline(-xcent + 2 - WinRadius, color="C1", linewidth=5)
-    proj2.axvline(-xcent + 2 + WinRadius, color="C1", linewidth=5)
-
+    proj1.axvline(xcent - WinRadius, color=verticalcol, linewidth=5)
+    proj1.axvline(xcent + WinRadius, color=verticalcol, linewidth=5)
     proj1.set_xlim(xlow, xhigh)
     proj1.set_ylim(0)
 
-    proj2.set_xlim(xlow, xhigh)
-    proj2.set_ylim(0)
+    if Pdflag:
+        proj2.axvline(-xcent + 2 - WinRadius, color=verticalcol, linewidth=5)
+        proj2.axvline(-xcent + 2 + WinRadius, color=verticalcol, linewidth=5)
+        proj2.set_xlim(xlow, xhigh)
+        proj2.set_ylim(0)
+        mwpc2.set_yticks([])
+        proj2.set_yticks([])
+        proj2.set_xticks([-60, -30, 0, 30, 60])
 
     mwpc1.set_yticks([30, 15, 0, -15, -35])
     # proj1.set_yticks([])
-    mwpc2.set_yticks([])
-    proj2.set_yticks([])
 
     proj1.set_xticks([-60, -30, 0, 30, 60])
-    proj2.set_xticks([-60, -30, 0, 30, 60])
 
-    proj1.set_ylabel("Counts")
+    padsize = 20 if Pdflag else 70
+    proj1.set_ylabel(countlabel, labelpad=padsize)
     fig.supxlabel("X (mm)")
 
     # save the figure
+    name = "./output" + name[1:] if Pdflag else "./output" + name[7:]
     fig.savefig(name + "_dual.pdf", transparent=True, bbox_inches="tight")
-    fig.savefig(name + "_dual.png", bbox_inches="tight")
+    plt.close()
 
 
 # ----------------------------------------------------
@@ -267,6 +225,9 @@ window_centre_y = 1  # in mm
 name = "./213Rn/213Rn_MWPC"  # no extension
 window_centre_x = 3  # in mm
 window_centre_y = 0  # in mm
+"""
+
+"""
 name = "./226Th/226Th"  # no extension
 window_centre_x = -24  # in mm
 window_centre_y = 0  # in mm
@@ -275,6 +236,6 @@ window_centre_y = 0  # in mm
 radius = 32  # in mm
 max_radius = 40  # in mm
 usingDSSD = False
+Pdflag = True if "Pd" in name else False
 
-plotSaveGrainHisto(name, window_centre_x, window_centre_y, radius)
-# multiRadiusPlot(name, window_centre_x, window_centre_y, max_radius, radius)
+plotSaveGrainHisto(name, window_centre_x, window_centre_y, radius, Pdflag)
