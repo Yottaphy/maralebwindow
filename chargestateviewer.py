@@ -138,7 +138,7 @@ def plotSaveGrainHisto(name):
     # fill the figure
     image = mwpc.imshow(
         counts2d,
-        cmap="Blues",
+        cmap="Greys",
         origin="lower",
         vmin=0,
         vmax=5000,
